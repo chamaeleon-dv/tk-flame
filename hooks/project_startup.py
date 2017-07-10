@@ -139,7 +139,21 @@ class ProjectStartupActions(HookBaseClass):
         full_user_name = "%s (v%s)" % (user_name, self.parent.flame_version) 
 
         return full_user_name
+
+    def set_user_on_startup(self):
+        """
+        Returns True or False, and sets if the user should be set automaticly on Application
+        startup.
         
+        If the User is set and exists, Flame/FlameAssist will open the Project without user 
+        intervention, if the user is not Set as Startup option, the propper Project is selected
+        but it will not be opened automaticly.
+        
+        :returns: True or False (default: True)
+        """
+    
+        return False
+                
     def get_project_settings(self):
         """
         Returns project settings for when creating new projects.
