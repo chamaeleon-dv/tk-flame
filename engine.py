@@ -857,6 +857,16 @@ class FlameEngine(sgtk.platform.Engine):
         """
         return self.execute_hook_method("project_startup_hook", "get_server_hostname")
     
+    def get_backburner_hostname(self):
+        """
+        Return the hostname for the backburner server which will render
+        the Export Jobs, this is mostly not the host where the Project ist located, but 
+        often should be the localhost.
+        
+        :returns: hostname string 
+        """
+        return self.execute_hook_method("project_startup_hook", "get_backburner_hostname")
+    
     def get_backburner_tmp(self):
         """
         Return a location on disk, guaranteed to exist
