@@ -220,3 +220,16 @@ class ProjectStartupActions(HookBaseClass):
         
         
         return settings
+
+    def get_backburner_hostname(self):
+        """
+        Return the hostname for the backburner server which will render
+        the Export Jobs, this is mostly not the host where the Project ist located, but 
+        often should be the localhost.
+        
+        :returns: hostname string
+        :default: returns "localhost" 
+        """
+        
+        return "localhost" 
+
