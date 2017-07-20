@@ -40,3 +40,4 @@ docs/_build/
 
 # PyCharm project settings
 .idea
+._.DS_Store
