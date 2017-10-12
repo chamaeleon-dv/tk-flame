@@ -292,6 +292,17 @@ class FlameEngine(sgtk.platform.Engine):
         Called when the engine is being destroyed
         """
         self.log_debug("%s: Destroying..." % self)
+
+        # Remove the current engine python hooks from the flame python hooks path
+        env_var_sep = ":"
+        env_var_name = "DL_PYTHON_HOOK_PATH"
+        flame_hooks_folder = os.path.join(self.disk_location, self.FLAME_HOOKS_FOLDER)
+        paths = os.environ.get(env_var_name, "").split(env_var_sep)
+        paths = [path for path in paths if path != flame_hooks_folder]
+        os.environ[env_var_name] = env_var_sep.join(paths)
+        self.log_debug("Removed to hook paths: %s" % flame_hooks_folder)
+
+        # Close every app windows
         self.close_windows()
 
     @property
@@ -953,6 +964,9 @@ class FlameEngine(sgtk.platform.Engine):
         # run as current user, not as root
         backburner_args.append("-userRights")
 
+        # attach the executable to the backburner job
+        backburner_args.append("-attach")
+
         # increase the max task length to 600 minutes
         backburner_args.append("-timeout:600")
 
@@ -991,17 +1005,26 @@ class FlameEngine(sgtk.platform.Engine):
             if bb_manager :
                 backburner_args.append("-manager:\"%s\"" % bb_manager)
 
+        # Set the server group to the backburner job
+        bb_server_group = self.get_setting("backburner_server_group")
+        if bb_server_group:
+            backburner_args.append("-group:\"%s\"" % bb_server_group)
+
+        # Specify the backburner server if provided
         if backburner_server_host:
             backburner_args.append("-servers:\"%s\"" % backburner_server_host)
+        # Otherwise, fallback to the global backburner servers setting
+        else:
+            bb_servers = self.get_setting("backburner_servers")
+            if bb_servers:
+                backburner_args.append("-servers:\"%s\"" % bb_servers)
 
+        # Set the backburner job dependencies
         if run_after_job_id:
-            backburner_args.append("-dependencies:%s" % run_after_job_id) # run after another job
+            backburner_args.append("-dependencies:%s" % run_after_job_id)
 
         # call the bootstrap script
         backburner_bootstrap = os.path.join(self.disk_location, "python", "startup", "backburner.py")
-        
-        # assemble full cmd
-        farm_cmd = "%s '%s'" % (self.python_executable, backburner_bootstrap)
         
         # now we need to capture all of the environment and everything in a file
         # (thanks backburner!) so that we can replay it later when the task wakes up
@@ -1020,7 +1043,7 @@ class FlameEngine(sgtk.platform.Engine):
         pickle.dump(data, fh)
         fh.close()
         
-        full_cmd = "%s %s %s %s" % (backburner_job_cmd, " ".join(backburner_args), farm_cmd, session_file)
+        full_cmd = "%s %s %s %s" % (backburner_job_cmd, " ".join(backburner_args), backburner_bootstrap, session_file)
 
         self.log_debug("Starting backburner job '%s'" % job_name)
         self.log_debug("Command line: %s" % full_cmd)
