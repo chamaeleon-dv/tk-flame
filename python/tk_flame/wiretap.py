@@ -192,7 +192,10 @@ class WiretapHandler(object):
             if volume_name not in volumes:
                 raise TankError("Volume '%s' specified in hook does not exist in "
                                 "list of current volumes '%s'" % (volume_name, volumes))
-                        
+            
+            #Chamaeleon: disabled following line
+            #host_name = self._engine.execute_hook_method("project_startup_hook", "get_server_hostname")
+            
             # get project settings from the toolkit hook
             project_settings = self._engine.execute_hook_method("project_startup_hook", "get_project_settings")
             
@@ -297,7 +300,7 @@ class WiretapHandler(object):
             xml += self._append_setting_to_xml(project_settings, "FrameDepth")
             xml += self._append_setting_to_xml(project_settings, "AspectRatio")
             xml += self._append_setting_to_xml(project_settings, "FrameRate")
-            xml += self._append_setting_to_xml(project_settings, "ProxyEnable", stops_working_in="2016.1")            
+            xml += self._append_setting_to_xml(project_settings, "ProxyEnable", stops_working_in="2016.1")
             xml += self._append_setting_to_xml(project_settings, "FieldDominance")            
             xml += self._append_setting_to_xml(project_settings, "VisualDepth", starts_working_in="2015.3", stops_working_in="2018.0")
 
@@ -327,7 +330,6 @@ class WiretapHandler(object):
                 raise WiretapError("Error setting metadata for %s: %s" % (project_name, project_node.lastError()))
             
             self._engine.log_debug( "Project successfully created.")
-
 
     def _append_setting_to_xml(self, project_settings, setting, starts_working_in=None, stops_working_in=None):
         """
@@ -361,7 +363,6 @@ class WiretapHandler(object):
                 
             else:
                 xml = "<%s>%s</%s>" % (setting, project_settings.get(setting), setting)
-    
         return xml
     
 
