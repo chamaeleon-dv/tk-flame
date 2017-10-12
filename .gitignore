@@ -40,3 +40,8 @@ docs/_build/
 
 # PyCharm project settings
 .idea
+
+# OSX
+*.DS_Store
+.AppleDouble
+._*

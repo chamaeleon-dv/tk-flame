@@ -64,9 +64,11 @@ class WiretapHandler(object):
         WireTapClientInit()
         
         # Instantiate a server handle
-        host_name = self._engine.execute_hook_method("project_startup_hook", "get_server_hostname")
-        self._server = WireTapServerHandle("%s:IFFFS" % host_name)
-        self._engine.log_debug("Connected to wiretap host '%s'..." % host_name)
+        # Chamaeleon: Changed host_name to self._hostname so we cann access this later without
+        # researching the right host_name
+        self._host_name = self._engine.execute_hook_method("project_startup_hook", "get_server_hostname")
+        self._server = WireTapServerHandle("%s:IFFFS" % self._host_name)
+        self._engine.log_debug("Connected to wiretap host '%s'..." % self._host_name)
     
     def close(self):
         """
@@ -88,23 +90,40 @@ class WiretapHandler(object):
         user_name = self._engine.execute_hook_method("project_startup_hook", "get_user")
         project_name = self._engine.execute_hook_method("project_startup_hook", "get_project_name")
         workspace_name = self._engine.execute_hook_method("project_startup_hook", "get_workspace")
+        set_user_on_startup = self._engine.execute_hook_method("project_startup_hook", "set_user_on_startup")
         
         self._ensure_project_exists(project_name, user_name, workspace_name)
         self._ensure_user_exists(user_name)
         
+        
+        # 
+        # Chamaeleon:   optimized app_args creation with 
+        #               -- remote-host-name
+        #               -- modified, --start-user to disable automatisch userselection when
+        #                  username is set to "none" in "project_startup_hook: get_user"
+        #
+        app_args  = ""
+        app_args += " --remote-host-name='%s'" % (self._host_name)
+        app_args += " --start-project='%s'" % (project_name)
+        app_args += " --create-workspace"
+        if set_user_on_startup:
+            # only set username if its set, if none is set, let user select the User in
+            # the application
+            app_args += " --start-user='%s'" % (user_name)
         if workspace_name is None:
             # use Flame's default workspace
             self._engine.log_debug("Using the Flame default workspace")
-            app_args = "--start-project='%s' --start-user='%s' --create-workspace" % (project_name, user_name)
+            # Chamaeleon: removed the following line
+            # app_args = "--start-project='%s' --start-user='%s' --create-workspace" % (project_name, user_name)
             
         else:
             self._engine.log_debug("Using a custom workspace '%s'" % workspace_name)
             # an explicit workspace is used. Ensure it exists
             self._ensure_workspace_exists(project_name, workspace_name)
             # and pass it to the startup
-            app_args = "--start-project='%s' --start-user='%s' --create-workspace --start-workspace='%s'" % (project_name, 
-                                                                                                             user_name, 
-                                                                                                             workspace_name)
+            # Chamaeleon: changed following line
+            app_args += " --start-workspace='%s'" % (workspace_name)
+        
         
         return app_args
     
@@ -180,7 +199,8 @@ class WiretapHandler(object):
                 raise TankError("Volume '%s' specified in hook does not exist in "
                                 "list of current volumes '%s'" % (volume_name, volumes))
             
-            host_name = self._engine.execute_hook_method("project_startup_hook", "get_server_hostname")
+            #Chamaeleon: disabled following line
+            #host_name = self._engine.execute_hook_method("project_startup_hook", "get_server_hostname")
             
             # get project settings from the toolkit hook
             project_settings = self._engine.execute_hook_method("project_startup_hook", "get_project_settings")
@@ -200,7 +220,7 @@ class WiretapHandler(object):
                                                                     workspace_name,
                                                                     volume_name,
                                                                     volumes,
-                                                                    host_name,
+                                                                    self._host_name,
                                                                     group_name,
                                                                     groups,
                                                                     project_settings
@@ -220,17 +240,45 @@ class WiretapHandler(object):
             else:
                 self._engine.log_debug("Project settings ui will be bypassed.")            
             # create the project : Using the command line tool here instead of the python API because we need root privileges to set the group id. 
-            import subprocess, os
-            project_create_cmd = [
-                os.path.join(self._engine.wiretap_tools_root, "wiretap_create_node"),
-                "-n",
-                os.path.join("/volumes", volume_name),
-                "-d",
-                project_name ]
+            ##import subprocess, os
+            ##project_create_cmd = [
+            ##    os.path.join(self._engine.wiretap_tools_root, "wiretap_create_node"),
+            ##    "-n",
+            ##    os.path.join("/volumes", volume_name),
+            ##    "-d",
+            ##    project_name ]
+            ##
+            ##if not self._engine.is_version_less_than("2018.1"):
+            ##    project_create_cmd.append("-g")
+            ##    project_create_cmd.append(group_name)
 
-            if not self._engine.is_version_less_than("2018.1"):
-                project_create_cmd.append("-g")
-                project_create_cmd.append(group_name)
+            #
+            # Chamaeleon:   If Wiretap Server is not localhost, use to python API
+            #(2017-07-07)
+            #               After evaluating the tk-flame git sources: the code was changed in commit #37,f810a7da0132e54572bae4b8f5d6973ede477418
+            #               on 2017-03-29, from mtiudaeu to use the command line tool. This prevents project creating on remote hosts, because 
+            #               the needed host Parameter is missing.
+            #
+            #               Aditional, setting the group id on osx Flameassist 2018.1 other than the primary group of the user, did not work
+            #               If there are permission problems, on remote Hosts on creating a project, it could be solved on the remote Hosts wiretap
+            #               config.
+            #
+
+            if (self._host_name == "localhost"):
+                # Use command line tool, if wiretap host is localhost
+                self._engine.log_debug("Chamaeleon: localhost detected, using command line tool for wiretapd")            
+
+                import subprocess, os
+                project_create_cmd = [
+                    os.path.join(self._engine.wiretap_tools_root, "wiretap_create_node"),
+                    "-n",
+                    os.path.join("/volumes", volume_name),
+                    "-d",
+                    project_name ]
+
+                if not self._engine.is_version_less_than("2018.1"):
+                    project_create_cmd.append("-g")
+                    project_create_cmd.append(group_name)
 
             subprocess.check_call(project_create_cmd)
  
