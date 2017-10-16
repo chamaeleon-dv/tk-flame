@@ -16,9 +16,6 @@ from sgtk import TankError
 import os
 import re
 
-# Chamaeleon: needed in get_server_hostname() so search in Wiretap
-import subprocess
-
 HookBaseClass = sgtk.get_hook_baseclass()
 
 class ProjectStartupActions(HookBaseClass):
@@ -223,16 +220,3 @@ class ProjectStartupActions(HookBaseClass):
         
         
         return settings
-
-    def get_backburner_hostname(self):
-        """
-        Return the hostname for the backburner server which will render
-        the Export Jobs, this is mostly not the host where the Project ist located, but 
-        often should be the localhost.
-        
-        :returns: hostname string
-        :default: returns "localhost" 
-        """
-        
-        return "localhost" 
-
